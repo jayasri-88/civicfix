@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+
+# FastAPI
+uploads/
+
+# Virtual env
+venv/
+env/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Streamlit (if any)
+.streamlit/
+# datasets
+ai-model/dataset/
+*.jpg
+*.png
+*.jpeg
+
+# model weights
+*.h5
+*.pt
+*.pth
+
+# database
+*.db
+
+# uploads
+uploads/
+
+# python cache
+__pycache__/
+*.pyc
+
+# env
+venv/
+.env
