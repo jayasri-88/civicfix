@@ -1,3 +1,4 @@
+import { useEffect } from "react"
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
 import Home from "./pages/Home"
 import Report from "./pages/Report"
@@ -6,8 +7,15 @@ import Dashboard from "./pages/Dashboard"
 import Authority from "./pages/Authority"
 import AuthorityDashboard from "./pages/AuthorityDashboard"
 import { Toaster } from "sonner"
+import { useIssueStore } from "./lib/store"
 
 function App() {
+  const fetchIssues = useIssueStore((state) => state.fetchIssues)
+
+  useEffect(() => {
+    fetchIssues()
+  }, [fetchIssues])
+
   return (
     <Router>
       <Routes>

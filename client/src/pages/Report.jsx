@@ -26,7 +26,8 @@ export default function ReportIssue() {
         reporterName: "",
         reporterPhone: "",
     })
-    const [images, setImages] = useState([])
+    const [images, setImages] = useState([]) 
+    const [imageFiles, setImageFiles] = useState([])
     const [isSubmitting, setIsSubmitting] = useState(false)
 
     const handleInputChange = (e) => {
@@ -38,6 +39,7 @@ export default function ReportIssue() {
         const files = e.target.files
         if (files) {
             Array.from(files).forEach((file) => {
+                setImageFiles((prev) => [...prev, file])
                 const reader = new FileReader()
                 reader.onload = (event) => {
                     if (event.target?.result) {
@@ -51,6 +53,7 @@ export default function ReportIssue() {
 
     const removeImage = (index) => {
         setImages((prev) => prev.filter((_, i) => i !== index))
+        setImageFiles((prev) => prev.filter((_, i) => i !== index))
     }
 
     const handleSubmit = async (e) => {
@@ -64,19 +67,21 @@ export default function ReportIssue() {
         setIsSubmitting(true)
 
         try {
-            addIssue({
-                category: formData.category,
-                title: formData.title,
-                description: formData.description,
-                location: formData.location,
-                village: formData.village,
-                reporterName: formData.reporterName,
-                reporterPhone: formData.reporterPhone,
-                status: "Submitted",
-                priority: "Medium",
-                images: images,
-                remarks: "",
-            })
+            const data = new FormData()
+            data.append("title", formData.title)
+            data.append("description", formData.description)
+            data.append("location", formData.location)
+
+            if (imageFiles.length > 0) {
+                // Submit the first image for now since endpoints expect `image: UploadFile = File(...)`
+                data.append("image", imageFiles[0])
+            } else {
+                alert("Please upload at least one image")
+                setIsSubmitting(false)
+                return
+            }
+
+            const newIssue = await addIssue(data)
 
             setTimeout(() => {
                 navigate("/track")

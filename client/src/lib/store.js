@@ -1,122 +1,118 @@
 import { create } from "zustand"
 
-// Sample data
-const sampleIssues = [
-  {
-    id: "1",
-    trackingId: "civicfix-2025-001",
-    category: "Roads",
-    title: "Pothole on Main Street",
-    description: "Large pothole near the market causing traffic issues",
-    location: "Main Street, near market",
-    village: "Greenfield Village",
-    reporterName: "Rajesh Kumar",
-    reporterPhone: "9876543210",
-    status: "In Progress",
-    priority: "High",
-    images: ["/pothole.png"],
-    createdAt: new Date("2025-10-15"),
-    updatedAt: new Date("2025-10-18"),
-    remarks: "Repair work scheduled for next week",
-    assignedDepartment: "Public Works",
-    timeline: [
-      { status: "Submitted", date: new Date("2025-10-15"), remarks: "Issue reported" },
-      { status: "Under Review", date: new Date("2025-10-16"), remarks: "Reviewed by department" },
-      { status: "In Progress", date: new Date("2025-10-18"), remarks: "Repair work started" },
-    ],
-  },
-  {
-    id: "2",
-    trackingId: "civicfix-2025-002",
-    category: "Water Supply",
-    title: "Water pipe burst",
-    description: "Water leakage from main supply pipe near school",
-    location: "School Road",
-    village: "Greenfield Village",
-    reporterName: "Priya Singh",
-    reporterPhone: "9876543211",
-    status: "Resolved",
-    priority: "High",
-    images: ["/water-pipe.jpg"],
-    createdAt: new Date("2025-10-10"),
-    updatedAt: new Date("2025-10-17"),
-    remarks: "Pipe replaced successfully",
-    assignedDepartment: "Water Department",
-    timeline: [
-      { status: "Submitted", date: new Date("2025-10-10"), remarks: "Issue reported" },
-      { status: "Under Review", date: new Date("2025-10-11"), remarks: "Assessed by team" },
-      { status: "In Progress", date: new Date("2025-10-14"), remarks: "Repair in progress" },
-      { status: "Resolved", date: new Date("2025-10-17"), remarks: "Pipe replaced and tested" },
-    ],
-  },
-  {
-    id: "3",
-    trackingId: "civicfix-2025-003",
-    category: "Electricity",
-    title: "Street light not working",
-    description: "Street light near the temple is not functioning",
-    location: "Temple Road",
-    village: "Greenfield Village",
-    reporterName: "Amit Patel",
-    reporterPhone: "9876543212",
-    status: "Submitted",
-    priority: "Medium",
-    images: ["/street-light.jpg"],
-    createdAt: new Date("2025-10-19"),
-    updatedAt: new Date("2025-10-19"),
-    remarks: "",
-    assignedDepartment: undefined,
-    timeline: [{ status: "Submitted", date: new Date("2025-10-19"), remarks: "Issue reported" }],
-  },
-]
+const API_URL = "http://localhost:8000"
 
 export const useIssueStore = create((set, get) => ({
-  issues: sampleIssues,
+  issues: [],
+  isLoading: false,
 
-  addIssue: (issue) =>
-    set((state) => {
-      const newIssue = {
-        ...issue,
-        id: Math.random().toString(36).substr(2, 9),
-        trackingId: `civicfix-2025-${String(state.issues.length + 1).padStart(3, "0")}`,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+  fetchIssues: async () => {
+    set({ isLoading: true })
+    try {
+      const res = await fetch(`${API_URL}/complaints/`)
+      const data = await res.json()
+
+      const mappedIssues = data.map((complaint) => ({
+        id: complaint.id,
+        trackingId: `VIF-2025-${String(complaint.id).padStart(3, "0")}`,
+        category: complaint.category || "Other",
+        title: complaint.title,
+        description: complaint.description,
+        location: complaint.location || "",
+        village: "", // not in DB
+        reporterName: "", // not in DB
+        reporterPhone: "", // not in DB
+        status: complaint.status === "Pending" ? "Submitted" : complaint.status,
+        priority: "Medium",
+        images: complaint.image_path 
+          ? [complaint.image_path.startsWith('http') ? complaint.image_path : `${API_URL}/uploads/${complaint.image_path.split("/").pop()}`] 
+          : [],
+        createdAt: new Date(complaint.created_at),
+        updatedAt: new Date(complaint.created_at),
+        remarks: "",
+        assignedDepartment: complaint.department,
         timeline: [
-          {
-            status: "Submitted",
-            date: new Date(),
-            remarks: "Issue reported",
-          },
+          { status: complaint.status === "Pending" ? "Submitted" : complaint.status, date: new Date(complaint.created_at), remarks: "Initial status" }
         ],
+      }))
+      set({ issues: mappedIssues })
+    } catch (error) {
+      console.error("Failed to fetch issues", error)
+    } finally {
+      set({ isLoading: false })
+    }
+  },
+
+  addIssue: async (formData) => {
+    set({ isLoading: true })
+    try {
+      const res = await fetch(`${API_URL}/complaints/`, {
+        method: "POST",
+        body: formData,
+      })
+      if (!res.ok) {
+        throw new Error("Failed to create issue")
       }
-      return { issues: [...state.issues, newIssue] }
-    }),
+      const data = await res.json()
+      // Refresh list
+      await get().fetchIssues()
+      return data
+    } catch (error) {
+      console.error("Error creating issue", error)
+      throw error
+    } finally {
+      set({ isLoading: false })
+    }
+  },
 
-  updateIssue: (id, updates) =>
-    set((state) => ({
-      issues: state.issues.map((issue) =>
-        issue.id === id
-          ? {
-            ...issue,
-            ...updates,
-            updatedAt: new Date(),
-            timeline:
-              updates.status && updates.status !== issue.status
-                ? [
-                  ...issue.timeline,
-                  {
-                    status: updates.status,
-                    date: new Date(),
-                    remarks: updates.remarks || "",
-                  },
-                ]
-                : issue.timeline,
-          }
-          : issue,
-      ),
-    })),
+  updateIssue: async (id, updates) => {
+    try {
+      const { status } = updates // we only support updating status on the server currently
+      if (status) {
+        const formData = new FormData()
+        formData.append("status", status)
 
-  getIssueById: (id) => get().issues.find((issue) => issue.id === id),
+        const authData = JSON.parse(localStorage.getItem("authorityAuth") || "{}")
+        const token = authData.token
 
-  getIssueByTrackingId: (trackingId) => get().issues.find((issue) => issue.trackingId === trackingId),
+        const res = await fetch(`${API_URL}/complaints/${id}/status`, {
+          method: "PUT",
+          headers: {
+            ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+          },
+          body: formData,
+        })
+        if (!res.ok) {
+          throw new Error("Failed to update status")
+        }
+      }
+
+      // Update local state directly to be fast
+      set((state) => ({
+        issues: state.issues.map((issue) =>
+          issue.id === id
+            ? {
+              ...issue,
+              ...updates,
+              timeline: updates.status && updates.status !== issue.status ? [
+                ...issue.timeline,
+                {
+                  status: updates.status,
+                  date: new Date(),
+                  remarks: updates.remarks || "",
+                },
+              ] : issue.timeline,
+            }
+            : issue
+        ),
+      }))
+    } catch (error) {
+      console.error("Error updating issue", error)
+    }
+  },
+
+  getIssueById: (id) => get().issues.find((issue) => String(issue.id) === String(id)),
+
+  getIssueByTrackingId: (trackingId) => get().issues.find((issue) => issue.trackingId.toUpperCase() === trackingId.toUpperCase()),
 }))
+
