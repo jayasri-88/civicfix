@@ -1,6 +1,6 @@
 import { create } from "zustand"
 
-const API_URL = "http://localhost:8000"
+const API_URL = "https://civicfix-dpts.onrender.com"
 
 export const useIssueStore = create((set, get) => ({
   issues: [],
